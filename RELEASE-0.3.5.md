@@ -256,8 +256,8 @@ The board renderer also fails closed on invalid child paths, so a malformed subg
 Run the bundled parent/child board:
 
 ```bash
-node goalbuddy/extend/local-goal-board/scripts/local-goal-board.mjs \
-  --goal goalbuddy/extend/local-goal-board/examples/subgoal-parent
+node goalbuddy/surfaces/local-goal-board/scripts/local-goal-board.mjs \
+  --goal goalbuddy/surfaces/local-goal-board/examples/subgoal-parent
 ```
 
 Then try:
@@ -265,8 +265,8 @@ Then try:
 - switch to dark mode from the gear menu
 - open task `T004` to see the embedded child board
 - launch another board and use the header selector
-- run `goalbuddy parallel-plan goalbuddy/extend/local-goal-board/examples/subgoal-parent`
-- run `goalbuddy prompt goalbuddy/extend/local-goal-board/examples/subgoal-parent`
+- run `goalbuddy parallel-plan goalbuddy/surfaces/local-goal-board/examples/subgoal-parent`
+- run `goalbuddy prompt goalbuddy/surfaces/local-goal-board/examples/subgoal-parent`
 
 ## Tests
 

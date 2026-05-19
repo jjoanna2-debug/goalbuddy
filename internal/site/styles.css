@@ -103,7 +103,7 @@ pre {
 .workflow,
 .local-system,
 .sequence,
-.extensions,
+.proof-system,
 .final-cta,
 .star-history,
 .site-footer {
@@ -446,7 +446,7 @@ pre {
 
 .principles svg,
 .file-card > svg,
-.extension-grid svg,
+.proof-grid svg,
 .sequence-list svg {
   width: 28px;
   height: 28px;
@@ -456,7 +456,7 @@ pre {
 
 .principles h2,
 .file-card h3,
-.extension-grid h3 {
+.proof-grid h3 {
   margin: 22px 0 10px;
   font-size: clamp(1.25rem, 2vw, 1.65rem);
   line-height: 1.08;
@@ -464,7 +464,7 @@ pre {
 
 .principles p,
 .file-card p,
-.extension-grid p,
+.proof-grid p,
 .local-copy p,
 .section-intro p,
 .final-cta p {
@@ -476,7 +476,7 @@ pre {
 .workflow,
 .local-system,
 .sequence,
-.extensions {
+.proof-system {
   padding: 132px 0 0;
 }
 
@@ -539,7 +539,7 @@ pre {
 
 .agent-rail article,
 .file-card,
-.extension-grid article {
+.proof-grid article {
   position: relative;
   overflow: hidden;
   border: 1px solid rgba(222, 228, 242, 0.95);
@@ -561,7 +561,7 @@ pre {
 
 .agent-rail article:hover,
 .file-card:hover,
-.extension-grid article:hover {
+.proof-grid article:hover {
   transform: translateY(-7px);
   border-color: rgba(98, 82, 243, 0.38);
   box-shadow: 0 34px 86px rgba(30, 42, 80, 0.13);
@@ -797,20 +797,20 @@ pre {
   line-height: 1.24;
 }
 
-.extension-grid {
+.proof-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
 }
 
-.extension-grid article {
+.proof-grid article {
   display: flex;
   min-height: 330px;
   padding: 28px;
   flex-direction: column;
 }
 
-.extension-grid article::before {
+.proof-grid article::before {
   position: absolute;
   inset: 0 0 auto;
   height: 4px;
@@ -818,17 +818,17 @@ pre {
   background: var(--violet);
 }
 
-.extension-grid article:nth-child(2)::before,
-.extension-grid article:nth-child(5)::before {
+.proof-grid article:nth-child(2)::before,
+.proof-grid article:nth-child(5)::before {
   background: var(--green);
 }
 
-.extension-grid article:nth-child(3)::before,
-.extension-grid article:nth-child(6)::before {
+.proof-grid article:nth-child(3)::before,
+.proof-grid article:nth-child(6)::before {
   background: var(--orange);
 }
 
-.extension-command {
+.proof-command {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   width: 100%;
@@ -841,17 +841,17 @@ pre {
   text-align: left;
 }
 
-.extension-bulk-command {
+.proof-bulk-command {
   width: min(100%, 460px);
   margin-top: 24px;
 }
 
-.extension-command:hover {
+.proof-command:hover {
   border-color: rgba(79, 70, 216, 0.34);
   background: #fff;
 }
 
-.extension-command code {
+.proof-command code {
   min-width: 0;
   margin: 0;
   padding: 0;
@@ -863,7 +863,7 @@ pre {
   line-height: 1.45;
 }
 
-.extension-command span {
+.proof-command span {
   min-height: 34px;
   padding: 0 12px;
   color: #fff;
@@ -1031,7 +1031,7 @@ pre {
   .principles,
   .agent-rail,
   .workflow-showcase,
-  .extension-grid,
+  .proof-grid,
   .sequence-list {
     grid-template-columns: 1fr;
   }
@@ -1064,7 +1064,7 @@ pre {
   .workflow,
   .local-system,
   .sequence,
-  .extensions,
+  .proof-system,
   .final-cta,
   .star-history,
   .site-footer {
@@ -1158,7 +1158,7 @@ pre {
   .principles article,
   .agent-rail article,
   .file-card,
-  .extension-grid article,
+  .proof-grid article,
   .sequence-list li {
     padding: 24px;
   }
@@ -1175,7 +1175,7 @@ pre {
   .demo-section,
   .local-system,
   .sequence,
-  .extensions {
+  .proof-system {
     padding-top: 104px;
   }
 
@@ -1186,7 +1186,7 @@ pre {
     padding: 16px;
   }
 
-  .extension-command {
+  .proof-command {
     display: grid;
     grid-template-columns: 1fr;
     gap: 12px;

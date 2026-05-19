@@ -1,8 +1,8 @@
 # GoalBuddy Plugin (Codex + Claude Code)
 
-GoalBuddy packages the canonical `goal-prep` skill as a plugin so teams can install the reusable workflow in **Codex** and **Claude Code**, while keeping the npm CLI for local setup, doctor checks, and extension management.
+GoalBuddy packages the canonical `goal-prep` skill as a plugin so teams can install the reusable workflow in **Codex** and **Claude Code**, while keeping the npm CLI for local setup, doctor checks, and the built-in local board surface.
 
-Version 0.3.5 is the Subgoals, Parallel Agents, and Dark Mode release: depth-1 child boards, a shared multi-board local hub, readable dark-mode boards, stricter agent contracts, deterministic prompt rendering, and conservative parallel planning for long-running work.
+Version 0.3.7 is the Goalmaxxed release: goal oracles, largest safe useful slices, built-in local boards, receipt pressure, final-proof gates, and a smaller core without the extension catalog.
 
 ## What It Contains
 
@@ -56,8 +56,9 @@ goalbuddy --target claude  # installs for Claude Code only
 For local CLI testing before npm publish:
 
 ```bash
-node internal/cli/goal-maker.mjs --catalog-url extend/catalog.json
+node internal/cli/goal-maker.mjs
 node internal/cli/goal-maker.mjs doctor
+node internal/cli/goal-maker.mjs board docs/goals/<slug> --once --json
 ```
 
 ## Release Notes

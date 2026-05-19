@@ -33,11 +33,13 @@ test("Goal Prep invocation boundary keeps $goal-prep prepare-only", () => {
     assert.match(text, /Do not load that skill, browse that repo, or generate those assets during `\$goal-prep`/);
     assert.match(text, /check whether GoalBuddy itself is stale/);
     assert.match(text, /GoalBuddy <latest_version> is available/);
-    assert.match(text, /Do you want to set up a visual board for this\?/);
-    assert.match(text, /Ask the visual-board question early/);
+    assert.match(text, /Intent -> Oracle -> Surface -> Loop -> Proof/);
+    assert.match(text, /No oracle, no serious goal/);
+    assert.match(text, /Do you want the local GoalBuddy board for this goal\?/);
+    assert.match(text, /Use the local GoalBuddy board as the default work surface/);
     assert.match(text, /start the local board before filling the task list/);
     assert.match(text, /Codex in-app Browser/);
-    assert.match(text, /GitHub Projects/);
+    assert.match(text, /do not install a GoalBuddy catalog item/);
     assert.match(text, /Operator Escalation/);
     assert.match(text, /ask the operator one concise question before creating the external artifact/);
     assert.match(text, /This section applies after the user starts `\/goal Follow docs\/goals\/<slug>\/goal\.md\.`/);

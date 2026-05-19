@@ -53,6 +53,38 @@ function nestedScalar(section, key) {
   return null;
 }
 
+function pathScalar(path, key) {
+  const lines = text.split(/\r?\n/);
+  let depth = 0;
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    const indent = line.match(/^ */)[0].length;
+    if (indent < depth * 2) depth = Math.floor(indent / 2);
+
+    if (depth < path.length && indent === depth * 2 && new RegExp(`^\\s{${indent}}${path[depth]}:\\s*$`).test(line)) {
+      depth += 1;
+      continue;
+    }
+
+    if (depth === path.length && indent === depth * 2) {
+      const match = line.match(new RegExp(`^\\s{${indent}}${key}:\\s*(.*?)\\s*$`));
+      if (match) return clean(match[1]);
+    }
+  }
+  return null;
+}
+
+function isWeakProof(value) {
+  if (value === null || value === undefined) return true;
+  const normalized = String(value).trim().toLowerCase();
+  return normalized === ""
+    || normalized === "unknown"
+    || normalized === "tbd"
+    || normalized === "todo"
+    || normalized === "none"
+    || /^<.*>$/.test(normalized);
+}
+
 function sectionText(section) {
   const lines = text.split(/\r?\n/);
   const start = lines.findIndex((line) => new RegExp(`^${section}:\\s*$`).test(line));
@@ -225,6 +257,11 @@ const allowedAgentStatuses = new Set(["installed", "bundled_not_installed", "mis
 const continuousUntilFullOutcome = nestedScalar("rules", "continuous_until_full_outcome") === true;
 const missingInputOrCredentialsDoNotStopGoal =
   nestedScalar("rules", "missing_input_or_credentials_do_not_stop_goal") === true;
+const goalPressureRequiresOracle = nestedScalar("rules", "goal_pressure_requires_oracle") !== false;
+const noCompletionOnWeakProof = nestedScalar("rules", "no_completion_on_weak_proof") !== false;
+const completionProof = pathScalar(["goal", "intake"], "completion_proof");
+const oracleSignal = pathScalar(["goal", "oracle"], "signal");
+const oracleFinalProof = pathScalar(["goal", "oracle"], "final_proof");
 const legacySignals = [
   /^gate:\s*$/m,
   /^artifact_policy:\s*$/m,
@@ -242,6 +279,19 @@ if (version !== 2) {
 
 if (!["active", "blocked", "done"].includes(goalStatus)) {
   errors.push(`goal.status must be active, blocked, or done; got ${goalStatus || "<missing>"}`);
+}
+
+if (goalPressureRequiresOracle) {
+  if (isWeakProof(oracleSignal)) {
+    warnings.push("goal.oracle.signal is missing or placeholder-like; weak oracles make /goal finish too early.");
+  }
+  if (isWeakProof(oracleFinalProof)) {
+    warnings.push("goal.oracle.final_proof is missing or placeholder-like; final completion needs receipt-backed proof.");
+  }
+}
+
+if (isWeakProof(completionProof)) {
+  warnings.push("goal.intake.completion_proof is missing or placeholder-like; record the observable signal that proves the full original outcome.");
 }
 
 function agentStatusWarning(agent, status) {
@@ -532,6 +582,9 @@ function escapeRegExp(value) {
 }
 
 if (goalStatus === "done") {
+  if (noCompletionOnWeakProof && (isWeakProof(completionProof) || isWeakProof(oracleSignal) || isWeakProof(oracleFinalProof))) {
+    errors.push("done goals require concrete completion proof, goal.oracle.signal, and goal.oracle.final_proof; weak proof cannot close a goal");
+  }
   const finalAudit = tasks.some((task) => {
     if (!["judge", "pm"].includes(task.type) || task.status !== "done") return false;
     if (!task.receipt.present || task.receipt.value === null) return false;

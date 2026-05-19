@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 const marketplace = JSON.parse(readFileSync(".agents/plugins/marketplace.json", "utf8"));
 const plugin = JSON.parse(readFileSync("plugins/goalbuddy/.codex-plugin/plugin.json", "utf8"));
+const claudePlugin = JSON.parse(readFileSync("plugins/goalbuddy/.claude-plugin/plugin.json", "utf8"));
 
 test("GoalBuddy plugin is exposed through a Codex marketplace manifest", () => {
   assert.equal(marketplace.name, "goalbuddy");
@@ -24,6 +25,13 @@ test("GoalBuddy plugin metadata tracks the package release", () => {
   assert.equal(plugin.version, pkg.version);
   assert.equal(plugin.repository, "https://github.com/tolibear/goalbuddy");
   assert.equal(plugin.skills, "./skills/");
+});
+
+test("Claude plugin metadata stays aligned with package release", () => {
+  assert.equal(claudePlugin.name, pkg.name);
+  assert.equal(claudePlugin.version, pkg.version);
+  assert.equal(claudePlugin.description, plugin.description);
+  assert.ok(!claudePlugin.keywords.includes("extensions"));
 });
 
 test("GoalBuddy plugin delegates composer invocation to Goal Prep", () => {

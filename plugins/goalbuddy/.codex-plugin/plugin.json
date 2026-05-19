@@ -1,7 +1,7 @@
 {
   "name": "goalbuddy",
-  "version": "0.3.6",
-  "description": "Turn broad Codex and Claude Code work into verified GoalBuddy boards with subgoals, parallel-agent-ready handoffs, dark mode, and receipts.",
+  "version": "0.3.7",
+  "description": "Turn broad Codex and Claude Code work into pressured /goal runs with oracles, local boards, receipts, and verification.",
   "author": {
     "name": "tolibear",
     "email": "support@tolibear.com",
@@ -18,14 +18,13 @@
     "goal",
     "task-board",
     "receipts",
-    "workflow",
-    "extensions"
+    "workflow"
   ],
   "skills": "./skills/",
   "interface": {
     "displayName": "GoalBuddy",
-    "shortDescription": "Verified goal boards with subgoals, parallel-agent-ready handoffs, and dark mode",
-    "longDescription": "GoalBuddy packages a structured goal workflow for broad, long-running, or ambiguous engineering work in Codex or Claude Code. It creates durable goal charters, task boards, optional depth-1 subgoals, visual board surfaces, parallel-agent-ready handoffs, receipts, verification gates, extension handoffs, and compatibility guidance for teams moving from goal-maker.",
+    "shortDescription": "Goal oracles, local boards, receipts, and proof loops for /goal",
+    "longDescription": "GoalBuddy packages a structured goal workflow for broad, long-running, or ambiguous engineering work in Codex or Claude Code. It creates durable goal charters, goal oracles, task boards, optional depth-1 subgoals, local board surfaces, parallel-agent-ready handoffs, receipts, verification gates, and compatibility guidance for teams moving from goal-maker.",
     "developerName": "tolibear",
     "category": "Coding",
     "capabilities": [

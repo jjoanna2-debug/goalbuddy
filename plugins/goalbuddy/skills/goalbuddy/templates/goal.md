@@ -15,9 +15,18 @@
 - Authority: `requested | approved | inferred | needs_approval | blocked`
 - Proof type: `test | demo | artifact | metric | review | source_backed_answer | decision`
 - Completion proof: <observable signal that closes the full original outcome>
+- Goal oracle: <live check, walkthrough, artifact, metric, source-backed answer, or decision that keeps pressure on the goal>
 - Likely misfire: <how GoalBuddy could succeed at the wrong thing>
 - Blind spots considered: <risks, unstated choices, or success dimensions surfaced during diagnostic intake>
 - Existing plan facts: <user-provided steps/files/constraints/sequencing to preserve and validate, or none>
+
+## Goal Oracle
+
+The oracle for this goal is:
+
+`<specific observable signal>`
+
+The PM must keep comparing task receipts to this oracle. Planning, discovery, a passing tiny slice, or a clean-looking board is not enough. The goal finishes only when a final Judge/PM audit maps receipts and verification back to this oracle and records `full_outcome_complete: true`.
 
 ## Goal Kind
 

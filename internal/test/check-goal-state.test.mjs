@@ -103,6 +103,55 @@ test("accepts a valid v2 board with one active Scout task", () => {
   }
 });
 
+test("rejects done goals with placeholder oracle proof", () => {
+  const root = makeRoot();
+  try {
+    writeState(root, `
+version: 2
+goal:
+  title: "Weak finish"
+  slug: "weak-finish"
+  kind: specific
+  tranche: "prove completion"
+  status: done
+  oracle:
+    signal: "<observable signal>"
+    final_proof: "<receipt-backed final proof>"
+  intake:
+    completion_proof: "<observable completion proof>"
+rules:
+  continuous_until_full_outcome: true
+  no_completion_on_weak_proof: true
+agents:
+  scout: installed
+  worker: installed
+  judge: installed
+active_task: null
+tasks:
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: done
+    objective: "Audit completion."
+    receipt:
+      result: done
+      decision: complete
+      full_outcome_complete: true
+checks:
+  dirty_fingerprint: unknown
+  last_verification:
+    result: pass
+    task: T999
+    commands: []
+`);
+    const result = runChecker(root);
+    assert.equal(result.status, 1);
+    assert.match(result.stdout.errors.join("\n"), /done goals require concrete completion proof/i);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("accepts explicit non-installed agent states with actionable warnings", () => {
   const root = makeRoot();
   try {
@@ -619,6 +668,11 @@ goal:
   kind: specific
   tranche: "docs cleanup"
   status: done
+  oracle:
+    signal: "README changed and git diff --check passes."
+    final_proof: "T002 audit confirms docs cleanup after passing git diff --check."
+  intake:
+    completion_proof: "README changed and git diff --check passes."
 rules:
   pm_owns_state: true
   one_active_task: true
@@ -760,6 +814,11 @@ goal:
   kind: specific
   tranche: "Update agent files."
   status: done
+  oracle:
+    signal: "Agent contract files are updated and npm test passes."
+    final_proof: "T999 audit confirms changed files match allowed globs after npm test passes."
+  intake:
+    completion_proof: "Agent contract files are updated and npm test passes."
 agents:
   scout: installed
   worker: installed
@@ -895,6 +954,11 @@ goal:
   kind: open_ended
   tranche: "continuous backend automation"
   status: done
+  oracle:
+    signal: "Backend automation outcome is implemented and npm test passes."
+    final_proof: "T999 audit records full_outcome_complete after Worker receipt and passing npm test."
+  intake:
+    completion_proof: "Backend automation outcome is implemented and npm test passes."
 rules:
   pm_owns_state: true
   one_active_task: true
@@ -964,6 +1028,11 @@ goal:
   kind: open_ended
   tranche: "continuous backend automation"
   status: done
+  oracle:
+    signal: "Backend automation outcome is implemented and npm test passes."
+    final_proof: "T999 audit records full_outcome_complete after Worker receipt and passing npm test."
+  intake:
+    completion_proof: "Backend automation outcome is implemented and npm test passes."
 rules:
   pm_owns_state: true
   one_active_task: true

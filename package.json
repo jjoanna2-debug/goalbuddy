@@ -1,7 +1,7 @@
 {
   "name": "goalbuddy",
-  "version": "0.3.6",
-  "description": "A /goal operating system for Codex and Claude Code: subgoals, parallel-agent-ready boards, dark mode, receipts, and verification.",
+  "version": "0.3.7",
+  "description": "A /goal operating loop for Codex and Claude Code: goal oracles, local boards, receipts, and verification.",
   "type": "module",
   "bin": {
     "goalbuddy": "internal/cli/goal-maker.mjs",
@@ -11,6 +11,7 @@
     ".agents/plugins/marketplace.json",
     "README.md",
     "RELEASE-0.3.5.md",
+    "RELEASE-0.3.7.md",
     "CONTRIBUTING.md",
     "examples",
     "plugins/goalbuddy",
@@ -19,7 +20,7 @@
     "goalbuddy/SKILL.md",
     "goalbuddy/agents",
     "goalbuddy/scripts",
-    "goalbuddy/extend",
+    "goalbuddy/surfaces",
     "goalbuddy/templates"
   ],
   "scripts": {
@@ -51,7 +52,6 @@
     "cli",
     "workflow",
     "agent",
-    "extensions",
     "verification"
   ],
   "author": "tolibear",

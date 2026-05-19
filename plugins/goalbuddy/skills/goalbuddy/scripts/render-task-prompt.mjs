@@ -2,7 +2,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseGoalStateText } from "../extend/local-goal-board/scripts/lib/goal-board.mjs";
+import { parseGoalStateText } from "../surfaces/local-goal-board/scripts/lib/goal-board.mjs";
 
 const ROLE_DEFAULTS = {
   scout: { agent: "goal_scout", reasoning: "low", sandbox: "read-only" },
@@ -45,6 +45,7 @@ export function renderTaskPrompt(options) {
         fork_context_allowed: role !== "worker",
         board_path: board.path,
         child_board_paths: childBoardPaths(board),
+        goal_oracle: board.goal.oracle || null,
         slice_policy: board.document.rules?.slice_policy || null,
         warnings,
       },
@@ -141,6 +142,12 @@ function promptWarnings(board, task) {
   const warnings = [];
   const role = normalizeRole(task.type);
   if (task.id !== board.activeTask) warnings.push(`Task ${task.id} is not the active task on this board.`);
+  if (isWeakProof(board.goal.oracle?.signal)) {
+    warnings.push("goal.oracle.signal is missing or placeholder-like; keep the goal pressured by a concrete completion oracle.");
+  }
+  if (isWeakProof(board.goal.oracle?.final_proof)) {
+    warnings.push("goal.oracle.final_proof is missing or placeholder-like; do not mark the goal complete without receipt-backed proof.");
+  }
   if (role === "worker") {
     if (stringList(task.allowed_files).length === 0) warnings.push(`Worker task ${task.id} has no allowed_files.`);
     if (stringList(task.verify).length === 0) warnings.push(`Worker task ${task.id} has no verify commands.`);
@@ -211,6 +218,17 @@ function isTrue(value) {
   return value === true || String(value).toLowerCase() === "true";
 }
 
+function isWeakProof(value) {
+  if (value === null || value === undefined) return true;
+  const normalized = String(value).trim().toLowerCase();
+  return normalized === ""
+    || normalized === "unknown"
+    || normalized === "tbd"
+    || normalized === "todo"
+    || normalized === "none"
+    || /^<.*>$/.test(normalized);
+}
+
 function stringList(value) {
   return Array.isArray(value) ? value.filter((item) => item !== null && item !== undefined).map(String) : [];
 }
@@ -260,6 +278,9 @@ function formatPrompt(payload) {
   if (payload.metadata.child_board_paths.length) {
     lines.push("- child_board_paths:");
     for (const path of payload.metadata.child_board_paths) lines.push(`  - ${path}`);
+  }
+  if (payload.metadata.goal_oracle) {
+    lines.push(`- goal_oracle: ${JSON.stringify(payload.metadata.goal_oracle)}`);
   }
   if (payload.metadata.slice_policy) {
     lines.push(`- slice_policy: ${JSON.stringify(payload.metadata.slice_policy)}`);

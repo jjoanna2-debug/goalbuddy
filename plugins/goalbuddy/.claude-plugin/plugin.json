@@ -1,7 +1,7 @@
 {
   "name": "goalbuddy",
-  "version": "0.3.6",
-  "description": "Turn broad Claude Code work into verified GoalBuddy boards with subgoals, parallel-agent-ready handoffs, dark mode, and receipts.",
+  "version": "0.3.7",
+  "description": "Turn broad Codex and Claude Code work into pressured /goal runs with oracles, local boards, receipts, and verification.",
   "author": {
     "name": "tolibear",
     "email": "support@tolibear.com",
@@ -18,7 +18,6 @@
     "goal",
     "task-board",
     "receipts",
-    "workflow",
-    "extensions"
+    "workflow"
   ]
 }

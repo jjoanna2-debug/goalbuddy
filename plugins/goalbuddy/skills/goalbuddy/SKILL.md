@@ -12,8 +12,16 @@ GoalBuddy is for autonomous, long-running Codex or Claude Code work where the PM
 The loop is:
 
 ```text
-raw user intent -> intake compiler -> discovery/plan validation/execution board -> one active task -> receipt -> board update -> repeat
+raw user intent -> intake compiler -> goal oracle -> local work surface -> one active task -> receipt -> proof loop -> repeat
 ```
+
+GoalBuddy's core invariant is:
+
+```text
+Intent -> Oracle -> Surface -> Loop -> Proof
+```
+
+No oracle, no serious goal. A goal oracle is the observable signal that tells the PM whether the original owner outcome is actually true yet. It may be a test suite, browser walkthrough, demo transcript, generated artifact, benchmark, source-backed answer, release check, or final human decision. Weak proof creates weak goals, so record the oracle before shaping tasks and keep testing against it until final completion.
 
 ## Invocation Boundary
 
@@ -31,7 +39,7 @@ Allowed `$goal-prep` actions:
 - run the bundled GoalBuddy update checker and mention a newer version if one is available;
 - ask diagnostic intake questions and wait when required;
 - create or repair only `docs/goals/<slug>/goal.md`, `docs/goals/<slug>/state.yaml`, `docs/goals/<slug>/notes/`, and the generated `.goalbuddy-board/` visual board artifact;
-- create and open the selected visual board surface for the goal;
+- create and open the built-in local GoalBuddy board surface for the goal unless the user opts out;
 - optionally run the GoalBuddy board checker against that `state.yaml`;
 - verify GoalBuddy agent availability, if this can be done without touching implementation work, and record `installed`, `bundled_not_installed`, `missing`, or `unknown` truthfully;
 - print exactly `/goal Follow docs/goals/<slug>/goal.md.`;
@@ -69,25 +77,25 @@ Extract:
 - authority: `requested | approved | inferred | needs_approval | blocked`;
 - proof type: `test | demo | artifact | metric | review | source_backed_answer | decision`;
 - completion proof: the observable signal for full outcome completion;
+- goal oracle: the live check, walkthrough, artifact, metric, or decision that will keep pressure on the goal and prevent early completion;
 - likely misfire: how `/goal` could succeed at the wrong thing;
 - blind spots: important risks, choices, or success dimensions the user may not have named yet;
 - existing plan facts: user-provided steps, files, constraints, or sequencing that must be preserved but still validated.
 
-Ask the visual-board question early, before detailed task shaping:
+Use the local GoalBuddy board as the default work surface for broad GoalBuddy runs. Ask only when the user has not already implied they want the default local surface, the goal is unusually quick/private, or board setup would materially distract from the requested prep:
 
 ```text
-Do you want to set up a visual board for this?
+Do you want the local GoalBuddy board for this goal?
 ```
 
 Recommended options:
 
 1. Local live board (Recommended) - starts immediately, requires no credentials, and lets the user watch tasks populate inside Codex or Claude Code.
-2. GitHub Projects - best when stakeholders need a shared external board and the user can approve GitHub credentials/project details.
-3. No visual board - best for quick or private goals where the file board is enough.
+2. No visual board - best for quick or private goals where the file board is enough.
 
 If the user chooses the local live board, create the goal directory, `notes/`, and an initial minimal `state.yaml` as soon as the slug is known, then run `npx goalbuddy board docs/goals/<slug>` and open the printed local URL in the AI coding agent's in-app browser (the Codex in-app Browser, the Claude Code preview, or the user's regular browser). The default local hub is `http://goalbuddy.localhost:41737/`, and board URLs normally look like `http://goalbuddy.localhost:41737/<slug>/`. In short: start the local board before filling the task list so the board pops up right away and cards populate live as `state.yaml` changes. Include the printed board URL in the final prep response as an actual clickable Markdown link, for example `[Open GoalBuddy board](http://goalbuddy.localhost:41737/<slug>/)`. Do not put the board URL only in a code block, quote, HTML comment, or prose that the UI cannot click.
 
-If the user chooses GitHub Projects, ask for approval and the required project target before any live write. Create or sync the GitHub Project at the same early point as the local board: after the goal root and skeleton `state.yaml` exist, before the detailed task list is finished, then sync again as tasks populate. Run a dry-run sync first when possible. Missing GitHub credentials or project details should not block local board creation or goal prep; record the missing requirement in `visual_board.github_projects` and seed a PM setup task.
+If the user wants an external board, GitHub sync, Slack digest, Linear handoff, or any other custom integration, do not install a GoalBuddy catalog item. Treat it as normal implementation work: create a concrete task that designs and verifies that integration inside the target repo or asks the operator for the required credentials and scope.
 
 Ask before board creation when the request is vague, strategic, improvement-oriented, or open-ended and the user has not explicitly said to use defaults. Ask one guided question at a time with 2-3 options and a recommended default, then wait. Continue the diagnostic intake until the user's answers are sufficient to choose the board shape. Do not create or repair `docs/goals/<slug>/` until the diagnostic intake is complete or the user explicitly accepts defaults.
 
@@ -134,7 +142,7 @@ Stop after each question. Do not create files, repair an existing board, run che
 
 Minimum diagnostic ladder for vague, strategic, or improvement-oriented goals:
 
-1. Visual board: ask "Do you want to set up a visual board for this?"
+1. Goal surface: use the local live board by default, or ask "Do you want the local GoalBuddy board for this goal?" when board handling is unresolved.
 2. Intent target: what kind of improvement or outcome matters most?
 3. Success proof: what evidence would convince the user this worked?
 4. Scope and non-goals: what should remain untouched or explicitly out of scope?
@@ -173,7 +181,7 @@ Do:
 - classify the goal as `specific`, `open_ended`, `existing_plan`, `recovery`, or `audit`;
 - create or repair `docs/goals/<slug>/`;
 - create `goal.md`, `state.yaml`, and `notes/`;
-- if requested, start the local visual board immediately and open it in the AI coding agent's in-app browser (Codex in-app Browser, Claude Code preview, or the user's regular browser) before filling the task list;
+- start the local board immediately and open it in the AI coding agent's in-app browser (Codex in-app Browser, Claude Code preview, or the user's regular browser) before filling the task list, unless the user opts out;
 - seed a role-tagged task board that matches the input shape;
 - make the first active task safe;
 - verify Scout, Worker, and Judge agent availability or record an explicit truthful state;
@@ -234,7 +242,7 @@ Use this skill for goals that are broad, multi-hour, ambiguous, high-risk, alrea
 
 For a one-change task, do not create a GoalBuddy board.
 
-Scout and Judge tasks may identify optional extension, plugin, publishing, reporting, or channel opportunities as improvement candidates. Treat those as normal board tasks. Extensions are supporting surfaces; `state.yaml` remains board truth.
+Scout and Judge tasks may identify optional publishing, reporting, integration, plugin, or channel opportunities as improvement candidates. Treat those as normal board tasks with concrete implementation plans. `state.yaml` remains board truth.
 
 ## The Four Primitives
 
@@ -274,6 +282,7 @@ The charter answers:
 What did the user originally ask for?
 What are we trying to improve?
 What input shape did the intake identify?
+What is the goal oracle?
 What constraints are non-negotiable?
 Is this goal specific, open-ended, existing-plan, recovery, or audit?
 What likely misfire must the PM avoid?

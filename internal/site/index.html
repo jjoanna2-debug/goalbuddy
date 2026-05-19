@@ -6,19 +6,19 @@
     <title>Goal Buddy - A /goal operating system for long runs</title>
     <meta
       name="description"
-      content="Goal Buddy prepares goal.md and state.yaml for long /goal runs, then keeps local goal state ready for optional extensions."
+      content="Goal Buddy prepares goal.md and state.yaml for long /goal runs, then keeps pressure on the goal with a local board, receipts, and proof."
     >
     <link rel="canonical" href="https://goalbuddy.dev/">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://goalbuddy.dev/">
     <meta property="og:title" content="Goal Buddy - A /goal operating system for long runs">
-    <meta property="og:description" content="Prepare goal.md for long /goal runs, keep state.yaml authoritative, and extend goal state to the places your team works.">
+    <meta property="og:description" content="Prepare goal.md for long /goal runs, keep state.yaml authoritative, and finish only when receipts prove the outcome.">
     <meta property="og:image" content="https://goalbuddy.dev/assets/goalbuddy-og.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Goal Buddy - A /goal operating system for long runs">
-    <meta name="twitter:description" content="Prepare goal.md for long /goal runs, keep state.yaml authoritative, and extend goal state to the places your team works.">
+    <meta name="twitter:description" content="Prepare goal.md for long /goal runs, keep state.yaml authoritative, and finish only when receipts prove the outcome.">
     <meta name="twitter:image" content="https://goalbuddy.dev/assets/goalbuddy-og.png">
     <link rel="icon" href="./assets/goalbuddy-mark.png" type="image/png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -37,7 +37,7 @@
           <a href="#demo">Demo</a>
           <a href="#workflow">Workflow</a>
           <a href="#local">Local files</a>
-          <a href="#extensions">Extensions</a>
+          <a href="#proof">Proof</a>
           <a href="https://github.com/tolibear/goalbuddy">GitHub</a>
         </nav>
         <div class="header-tools">
@@ -60,7 +60,7 @@
             <span>a best friend.</span>
           </h1>
           <p class="hero-subcopy">
-            Goal Buddy prepares a goal.md for long /goal runs, keeps state.yaml as local truth, and lets you extend goal state into GitHub, Slack, Linear, and other places when the workflow needs it.
+            Goal Buddy prepares a goal.md for long /goal runs, keeps state.yaml as local truth, and pressures the work with an oracle, a local board, receipts, and final proof.
           </p>
           <div class="hero-actions" aria-label="Goal Buddy actions">
             <a class="button button-primary" href="#install" data-copy="npx goalbuddy" data-copy-toast="Copied npx goalbuddy">
@@ -108,9 +108,9 @@
           <p>/goal reads and updates local state instead of relying on a hosted tracker.</p>
         </article>
         <article>
-          <i data-lucide="plug"></i>
-          <h2>Extend outward</h2>
-          <p>Optional extensions publish handoffs or mirrors while state.yaml stays primary.</p>
+          <i data-lucide="badge-check"></i>
+          <h2>Finish with proof</h2>
+          <p>Receipts map back to the oracle before /goal can claim the outcome is complete.</p>
         </article>
       </section>
 
@@ -145,7 +145,7 @@
         <div class="section-intro">
           <h2 id="workflow-title">A bounded loop for long /goal runs.</h2>
           <p>
-            Goal Buddy separates mapping, decision, and implementation so /goal can continue from explicit state instead of re-inferring the project every turn.
+            Goal Buddy separates mapping, decision, and implementation so /goal can continue from explicit state and keep checking the same finish line every turn.
           </p>
         </div>
 
@@ -181,7 +181,7 @@
           <div class="section-kicker">Local truth</div>
           <h2 id="local-title">Repo files stay authoritative.</h2>
           <p>
-            Goal Buddy writes the goal charter, machine-readable state, and notes into your repository. /goal can resume from those files, and extensions can mirror the state without replacing it.
+            Goal Buddy writes the goal charter, machine-readable state, and notes into your repository. /goal can resume from those files, and the local board shows the same truth without replacing it.
           </p>
           <img class="local-character" src="./assets/goalbuddy-agent-judge-alpha.png" alt="Judge sub-agent Goal Buddy holding a verdict clipboard">
         </div>
@@ -189,8 +189,8 @@
         <div class="file-grid">
           <article class="file-card file-goal">
             <i data-lucide="file-text"></i>
-            <h3>goal.md</h3>
-            <p>Human-readable charter for /goal: intent, scope, acceptance criteria, and run instructions.</p>
+          <h3>goal.md</h3>
+            <p>Human-readable charter for /goal: intent, scope, oracle, acceptance criteria, and run instructions.</p>
             <code># Goal Charter<br>/goal Follow docs/goals/&lt;slug&gt;/goal.md</code>
           </article>
           <article class="file-card file-state">
@@ -228,8 +228,8 @@
             <span>Capture intent</span>
           </li>
           <li>
-            <i data-lucide="route"></i>
-            <span>Scout constraints</span>
+            <i data-lucide="crosshair"></i>
+            <span>Set oracle</span>
           </li>
           <li>
             <i data-lucide="gavel"></i>
@@ -246,70 +246,41 @@
         </ol>
       </section>
 
-      <section class="extensions" id="extensions" aria-labelledby="extensions-title">
-        <div class="section-kicker">Extension surface</div>
+      <section class="proof-system" id="proof" aria-labelledby="proof-title">
+        <div class="section-kicker">Goal pressure</div>
         <div class="section-intro">
-          <h2 id="extensions-title">Install focused state extensions.</h2>
-          <p>Install the optional bundle with one command, or pick individual catalog IDs. The core board still runs from goal.md and state.yaml.</p>
-          <button class="copy-command extension-command extension-bulk-command" type="button" data-copy="npx goalbuddy extend install --all">
-            <code>npx goalbuddy extend install --all</code>
+          <h2 id="proof-title">Finish only when the oracle says the outcome is real.</h2>
+          <p>GoalBuddy keeps the model small: one local board, one active task, one receipt trail, and a final audit that maps evidence back to the original owner outcome.</p>
+          <button class="copy-command proof-command proof-bulk-command" type="button" data-copy="npx goalbuddy board docs/goals/<slug>">
+            <code>npx goalbuddy board docs/goals/&lt;slug&gt;</code>
             <span>Copy</span>
           </button>
         </div>
-        <div class="extension-grid">
+        <div class="proof-grid">
           <article>
-            <i data-lucide="git-pull-request-arrow"></i>
-            <h3>GitHub PR workflow</h3>
-            <p>Prepare receipt-aligned commit boundaries and PR handoff Markdown without requiring GitHub credentials.</p>
-            <button class="copy-command extension-command" type="button" data-copy="npx goalbuddy extend install github-pr-workflow">
-              <code>npx goalbuddy extend install github-pr-workflow</code>
-              <span>Copy</span>
-            </button>
+            <i data-lucide="crosshair"></i>
+            <h3>Goal oracle</h3>
+            <p>Record the observable signal that proves the original outcome, then keep testing each slice against it.</p>
           </article>
           <article>
             <i data-lucide="layout-dashboard"></i>
-            <h3>GitHub Projects</h3>
-            <p>Mirror state.yaml tasks into ProjectV2 draft issues, fields, and a Goal Board view.</p>
-            <button class="copy-command extension-command" type="button" data-copy="npx goalbuddy extend install github-projects">
-              <code>npx goalbuddy extend install github-projects</code>
-              <span>Copy</span>
-            </button>
+            <h3>Local surface</h3>
+            <p>Open the live board as tasks populate, without credentials or a hosted tracker.</p>
           </article>
           <article>
-            <i data-lucide="binary"></i>
-            <h3>Codebase onboarding</h3>
-            <p>Generate a concise repo map from files, workflows, conventions, and entry points.</p>
-            <button class="copy-command extension-command" type="button" data-copy="npx goalbuddy extend install codebase-onboarding-map">
-              <code>npx goalbuddy extend install codebase-onboarding-map</code>
-              <span>Copy</span>
-            </button>
+            <i data-lucide="file-check-2"></i>
+            <h3>Receipts</h3>
+            <p>Every completed or blocked task leaves changed files, commands, evidence, and remaining blockers.</p>
           </article>
           <article>
-            <i data-lucide="activity"></i>
-            <h3>CI failure triage</h3>
-            <p>Turn failed checks, logs, changed files, and receipts into a recovery brief.</p>
-            <button class="copy-command extension-command" type="button" data-copy="npx goalbuddy extend install ci-failure-triage">
-              <code>npx goalbuddy extend install ci-failure-triage</code>
-              <span>Copy</span>
-            </button>
+            <i data-lucide="badge-check"></i>
+            <h3>Final audit</h3>
+            <p>Completion requires a Judge or PM audit with full_outcome_complete: true.</p>
           </article>
           <article>
-            <i data-lucide="ticket-check"></i>
-            <h3>Linear ticket handoff</h3>
-            <p>Convert scoped follow-ups, blockers, verification, and review notes into ticket-ready Markdown.</p>
-            <button class="copy-command extension-command" type="button" data-copy="npx goalbuddy extend install linear-ticket-handoff">
-              <code>npx goalbuddy extend install linear-ticket-handoff</code>
-              <span>Copy</span>
-            </button>
-          </article>
-          <article>
-            <i data-lucide="messages-square"></i>
-            <h3>Slack standup digest</h3>
-            <p>Summarize completed work, blockers, verification status, and next steps for Slack handoff.</p>
-            <button class="copy-command extension-command" type="button" data-copy="npx goalbuddy extend install slack-standup-digest">
-              <code>npx goalbuddy extend install slack-standup-digest</code>
-              <span>Copy</span>
-            </button>
+            <i data-lucide="git-compare-arrows"></i>
+            <h3>Continuation</h3>
+            <p>If safe local work remains, /goal advances instead of stopping after the first passing slice.</p>
           </article>
         </div>
       </section>
@@ -318,7 +289,7 @@
 
       <section class="final-cta" aria-labelledby="cta-title">
         <div>
-          <h2 id="cta-title">Give /goal a board, a receipt trail, and a next task.</h2>
+          <h2 id="cta-title">Give /goal an oracle, a board, and a proof loop.</h2>
           <p>MIT licensed. Dependency-free runtime. Built around local goal.md and state.yaml files.</p>
         </div>
         <a class="button button-primary" href="#install" data-copy="npx goalbuddy" data-copy-toast="Copied npx goalbuddy">

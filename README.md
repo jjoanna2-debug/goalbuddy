@@ -16,9 +16,9 @@
   <a href="https://goalbuddy.dev"><img alt="goalbuddy.dev" src="https://img.shields.io/badge/site-goalbuddy.dev-684cff?style=flat-square"></a>
 </p>
 
-GoalBuddy helps Codex and Claude Code stay oriented during long coding tasks, especially when the work branches into subgoals, parallel agents, and long-running verification.
+GoalBuddy helps Codex and Claude Code stay oriented during long coding tasks by giving native `/goal` a finish line, a live work surface, and a proof loop.
 
-It gives `/goal` a small local workspace: a charter, a board, notes, receipts, and a clear next task. The work stays in your repo, so a run can pause, resume, verify, and keep going without re-inventing the plan every turn.
+It gives `/goal` a small local workspace: a charter, a goal oracle, a board, notes, receipts, and a clear next task. The work stays in your repo, so a run can pause, resume, verify, and keep going without re-inventing the plan every turn.
 
 ## Start Here
 
@@ -70,6 +70,7 @@ docs/goals/<your-goal>/
   goal.md
   state.yaml
   notes/
+  .goalbuddy-board/ # generated local board files
   subgoals/        # optional depth-1 child boards
 ```
 
@@ -84,8 +85,14 @@ docs/goals/<your-goal>/
 ## How It Thinks
 
 ```text
-rough idea -> goal prep -> /goal -> scout -> judge -> worker -> receipt -> verify
+Intent -> Oracle -> Surface -> Loop -> Proof
 ```
+
+The oracle is the observable signal that says whether the original owner outcome is actually true: a test suite, browser walkthrough, demo transcript, generated artifact, benchmark, source-backed answer, release check, or final human decision.
+
+No oracle, no serious goal.
+
+The local board is the default work surface. It is not an extension marketplace; it is the built-in view of the `state.yaml` truth.
 
 Scout maps the repo.
 
@@ -93,7 +100,7 @@ Judge chooses the largest safe useful slice.
 
 Worker completes the whole assigned slice and leaves a receipt.
 
-`/goal` keeps the loop honest until the original goal is actually done.
+`/goal` keeps the loop honest until a final Judge/PM audit maps receipts and verification back to the oracle and records the full outcome complete.
 
 ## Slice Sizing
 
@@ -101,7 +108,7 @@ Safe does not mean small. Safe means bounded, explicit, verified, and reversible
 
 GoalBuddy should not optimize for tiny safe tasks. It should optimize for the largest safe useful slice: a working screen, working API path, data pipeline step, backend vertical slice, real bug fix, or milestone review. The board warns when it sees safe-looking work that keeps adding helpers, contracts, proof files, or doc notes without moving the outcome.
 
-## Subgoals, Parallel Agents, and Dark Mode
+## Goalmaxxed
 
 GoalBuddy keeps the model small:
 
@@ -115,7 +122,7 @@ Use subgoals for bounded child work that belongs to a parent task. Use multiple 
 
 ## Execution Quality
 
-GoalBuddy can prepare safe parallel work; it does not run a parallel org chart.
+GoalBuddy can prepare safe parallel work; it does not run a parallel org chart or install arbitrary extension packs.
 
 Use `goalbuddy prompt docs/goals/<slug>` to render a compact prompt for the active task without dumping the whole state file. The prompt includes a mandatory `required_spawn_agent_type`; Codex PMs should use that exact GoalBuddy agent (`goal_scout`, `goal_worker`, or `goal_judge`) instead of a generic role agent. Use `goalbuddy parallel-plan docs/goals/<slug>` to inspect read-only or disjoint write-scope work that can be handed to native Codex or Claude Code agent flows. The command reports recommendations only; it does not mutate state or spawn agents.
 
@@ -131,11 +138,13 @@ That updates both Codex and Claude Code.
 
 ## Live Boards
 
-GoalBuddy can open a local board while the work is running, so you can see the plan, active task, receipts, subgoals, and verification status without digging through the chat.
+GoalBuddy opens a local board while the work is running, so you can see the plan, active task, receipts, subgoals, and verification status without digging through the chat.
 
 Multiple local boards reuse one readable `goalbuddy.localhost` hub with an in-header board switcher. When sharing a board in chat or docs, use a real Markdown link such as `[Open GoalBuddy board](http://goalbuddy.localhost:41737/<slug>/)` so the URL is clickable. The viewer also supports dark mode, compact mode, completed-task collapse, active-work motion, and reduced-motion handling.
 
-See [GoalBuddy 0.3.5: Subgoals, Parallel Agents, and Dark Mode](RELEASE-0.3.5.md) for the release notes.
+Custom external integrations should be built as ordinary repo work with a concrete implementation plan, not installed from a GoalBuddy catalog.
+
+See [GoalBuddy 0.3.7: Goalmaxxed](RELEASE-0.3.7.md) for the latest release notes.
 
 <p align="center">
   <img src="internal/assets/goalbuddy-live-board.jpg" alt="GoalBuddy local live board open next to Codex while Scout, Judge, and Worker tasks populate." width="100%">

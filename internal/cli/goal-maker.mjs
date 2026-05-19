@@ -5,13 +5,12 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
-  renameSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { basename, dirname, join, normalize, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 
@@ -29,7 +28,6 @@ const claudePluginSource = join(packageRoot, "plugins", "goalbuddy");
 const packageInfo = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8"));
 const defaultCodexHome = process.env.CODEX_HOME || join(homedir(), ".codex");
 const defaultClaudeHome = process.env.CLAUDE_HOME || join(homedir(), ".claude");
-const defaultCatalogUrl = "https://raw.githubusercontent.com/tolibear/goalbuddy/main/extend/catalog.json";
 const requiredAgentFiles = [
   "goal_judge.toml",
   "goal_scout.toml",
@@ -40,15 +38,11 @@ const requiredClaudeAgentFiles = [
   "goal-judge.md",
   "goal-worker.md",
 ];
-const bundledCoreExtensionIds = new Set(["github-projects", "local-goal-board"]);
 const optionsWithValues = new Set([
-  "--catalog",
-  "--catalog-url",
   "--claude-home",
   "--codex-home",
   "--goal",
   "--host",
-  "--kind",
   "--port",
   "--source",
   "--target",
@@ -127,9 +121,6 @@ async function main() {
         break;
       }
       plugin();
-      break;
-    case "extend":
-      await extend();
       break;
     case "board":
       await board();
@@ -213,12 +204,7 @@ Usage:
   ${canonicalCliName} agents [--target claude|codex] [--claude-home <path>] [--codex-home <path>] [--force]
   ${canonicalCliName} doctor [--target claude|codex] [--claude-home <path>] [--codex-home <path>] [--goal-ready]
   ${canonicalCliName} check-update [--json]
-  ${canonicalCliName} extend [--catalog-url <url-or-path>] [--kind <kind>] [--json]
-  ${canonicalCliName} extend <id> [--catalog-url <url-or-path>] [--json]
-  ${canonicalCliName} extend install <id> [--catalog-url <url-or-path>] [--dry-run] [--force] [--json]
-  ${canonicalCliName} extend install --all [--catalog-url <url-or-path>] [--dry-run] [--force] [--json]
-  ${canonicalCliName} extend doctor [<id>] [--codex-home <path>] [--json]
-  ${canonicalCliName} board <docs/goals/slug> [--catalog-url <url-or-path>] [--host <host>] [--port <port>] [--once] [--json]
+  ${canonicalCliName} board <docs/goals/slug> [--host <host>] [--port <port>] [--once] [--json]
   ${canonicalCliName} prompt <docs/goals/slug> [--task T###] [--board <path/to/state.yaml>] [--json]
   ${canonicalCliName} parallel-plan <docs/goals/slug> [--json]
 
@@ -235,8 +221,6 @@ Compatibility:
 Environment:
   CODEX_HOME                         Overrides the default ~/.codex target.
   CLAUDE_HOME                        Overrides the default ~/.claude target (and selects Claude Code unless --target codex is set).
-  GOALBUDDY_EXTEND_CATALOG_URL       Overrides the default GitHub-hosted extension catalog.
-  GOAL_MAKER_EXTEND_CATALOG_URL      Legacy fallback for the extension catalog.
 `);
 }
 
@@ -289,16 +273,11 @@ function installClaudeSkill({ quiet = false } = {}) {
 
   const previousMetadata = readInstallMetadata(target);
   const previousFingerprint = existsSync(target) ? directoryFingerprint(target, { exclude: installFingerprintExcludes() }) : "";
-  const preservedExtensions = preserveInstalledExtensions([target], { tempRoot: claudeHome() });
-  const extensionTempPath = preservedExtensions.tempPath;
-  const preservedExtensionIds = preservedExtensions.ids;
 
   mkdirSync(dirname(target), { recursive: true });
   rmSync(target, { recursive: true, force: true });
   cpSync(skillSource, target, { recursive: true });
-  restoreInstalledExtensions(target, extensionTempPath);
   writeInstallMetadata(target, previousMetadata);
-  cleanupPreservedExtensions([extensionTempPath]);
 
   const currentFingerprint = directoryFingerprint(target, { exclude: installFingerprintExcludes() });
   const status = previousFingerprint
@@ -311,7 +290,6 @@ function installClaudeSkill({ quiet = false } = {}) {
     path: target,
     previous_version: previousMetadata?.package_version || "",
     current_version: packageInfo.version,
-    preserved_extensions: preservedExtensionIds,
   };
 }
 
@@ -362,7 +340,6 @@ async function buildClaudeInstallReport() {
     skill: installClaudeSkill({ quiet }),
     agents: installClaudeAgents({ quiet }),
     legacy_commands_cleanup: cleanupLegacyClaudeCommands({ quiet }),
-    extensions: await extensionDiscoverySummary(),
     warnings: [],
   };
 
@@ -463,27 +440,6 @@ function printClaudeInstallReport(report) {
   if (report.legacy_commands_cleanup?.removed) {
     console.log(`Removed legacy command: ${report.legacy_commands_cleanup.path}`);
   }
-  if (report.skill.preserved_extensions.length) {
-    console.log(`Preserved extensions: ${report.skill.preserved_extensions.join(", ")}`);
-  }
-
-  if (report.extensions?.error) {
-    console.log("");
-    console.log(`Extensions: unavailable (${report.extensions.error})`);
-  } else if (report.extensions) {
-    console.log("");
-    console.log(`Extensions: ${report.extensions.available_count} available from ${report.extensions.catalog_url}`);
-    if (report.extensions.recommended?.length) {
-      console.log("");
-      console.log("Recommended:");
-      for (const extension of report.extensions.recommended.slice(0, 3)) {
-        console.log(`  ${extension.name || extension.id}`);
-        if (extension.summary) console.log(`    ${extension.summary}`);
-        console.log(`    Details: npx ${extension.next_command}`);
-      }
-    }
-  }
-
   console.log("");
   console.log("Next:");
   console.log(`  Restart Claude Code, then run: /goal-prep`);
@@ -503,9 +459,6 @@ function installSkill({ force = true, quiet = false } = {}) {
 
   const previousMetadata = readInstallMetadata(target) || readInstallMetadata(legacyTarget);
   const previousFingerprint = existsSync(target) ? directoryFingerprint(target, { exclude: installFingerprintExcludes() }) : "";
-  const preservedExtensions = preserveInstalledExtensions([target, legacyTarget], { tempRoot: codexHome() });
-  const extensionTempPath = preservedExtensions.tempPath;
-  const preservedExtensionIds = preservedExtensions.ids;
 
   mkdirSync(dirname(target), { recursive: true });
   if (existsSync(target)) {
@@ -520,16 +473,13 @@ function installSkill({ force = true, quiet = false } = {}) {
   cpSync(skillSource, target, {
     recursive: true,
   });
-  restoreInstalledExtensions(target, extensionTempPath);
   writeInstallMetadata(target, previousMetadata);
 
   mkdirSync(dirname(legacyTarget), { recursive: true });
   rmSync(legacyTarget, { recursive: true, force: true });
   mkdirSync(legacyTarget, { recursive: true });
   writeFileSync(join(legacyTarget, "SKILL.md"), compatibilitySkillBody());
-  restoreInstalledExtensions(legacyTarget, extensionTempPath);
   writeInstallMetadata(legacyTarget, previousMetadata);
-  cleanupPreservedExtensions([extensionTempPath]);
 
   const currentFingerprint = directoryFingerprint(target, { exclude: installFingerprintExcludes() });
   const status = previousFingerprint
@@ -543,7 +493,6 @@ function installSkill({ force = true, quiet = false } = {}) {
     compatibility_path: legacyTarget,
     previous_version: previousMetadata?.package_version || "",
     current_version: packageInfo.version,
-    preserved_extensions: preservedExtensionIds,
   };
 }
 
@@ -605,7 +554,6 @@ async function installAll() {
     codex_home: codexHome(),
     skill: installSkill({ force: true, quiet }),
     agents: installAgents({ quiet }),
-    extensions: await extensionDiscoverySummary(),
     warnings: [],
   };
 
@@ -771,20 +719,14 @@ function installPlugin({ quiet = false } = {}) {
 
   const pluginManifest = JSON.parse(readFileSync(pluginManifestPath, "utf8"));
   const pluginCachePath = pluginCacheRoot(pluginManifest.version);
-  const pluginSkillPath = join(pluginCachePath, "skills", canonicalSkillDirectory);
   const marketplace = runCodex(["plugin", "marketplace", "add", source]);
   if (!marketplace.ok) {
     throw new Error(`Failed to add Codex plugin marketplace: ${firstLine(marketplace.stderr || marketplace.stdout)}`);
   }
 
-  const legacySkillPaths = legacyCodexSkillRoots();
-  const existingPluginSkillPath = installedPluginSkillRoot();
-  const preservedExtensions = preserveInstalledExtensions([existingPluginSkillPath, ...legacySkillPaths], { tempRoot: dirname(pluginCachePath) });
   mkdirSync(dirname(pluginCachePath), { recursive: true });
   rmSync(pluginCachePath, { recursive: true, force: true });
   cpSync(pluginSource, pluginCachePath, { recursive: true });
-  restoreInstalledExtensions(pluginSkillPath, preservedExtensions.tempPath);
-  cleanupPreservedExtensions([preservedExtensions.tempPath]);
   const removedLegacySkillPaths = cleanupLegacyCodexSkills();
   const configPath = enablePluginConfig();
   const agents = installAgents({ quiet: true });
@@ -799,7 +741,6 @@ function installPlugin({ quiet = false } = {}) {
     cache_path: pluginCachePath,
     config_path: configPath,
     agents,
-    preserved_extensions: preservedExtensions.ids,
     removed_legacy_skill_paths: removedLegacySkillPaths,
   };
 
@@ -815,9 +756,6 @@ function installPlugin({ quiet = false } = {}) {
   console.log(`Cache: ${pluginCachePath}`);
   console.log(`Config: ${configPath}`);
   console.log(`Agents: ${summarizeStatuses(report.agents)}`);
-  if (report.preserved_extensions.length) {
-    console.log(`Preserved extensions: ${report.preserved_extensions.join(", ")}`);
-  }
   if (report.removed_legacy_skill_paths.length) {
     console.log(`Removed legacy personal skills: ${report.removed_legacy_skill_paths.join(", ")}`);
   }
@@ -825,9 +763,8 @@ function installPlugin({ quiet = false } = {}) {
   console.log("Restart Codex, then use:");
   console.log(`  $${canonicalSkillName}`);
   console.log("");
-  console.log("Bundled visual boards:");
+  console.log("Goal surface:");
   console.log(`  npx ${canonicalCliName} board docs/goals/<slug>`);
-  console.log(`  npx ${canonicalCliName} extend github-projects`);
   return report;
 }
 
@@ -969,33 +906,6 @@ function firstLine(value) {
   return (value || "").split(/\r?\n/).find((line) => line.trim())?.trim() || "";
 }
 
-async function extend() {
-  if (args.includes("--help") || args.includes("-h")) {
-    extendUsage();
-    return;
-  }
-
-  const subcommand = positional(1) || "";
-  switch (subcommand) {
-    case "":
-      await extendCatalog();
-      break;
-    case "install":
-      await extendInstall();
-      break;
-    case "doctor":
-      extendDoctor();
-      break;
-    case "help":
-    case "--help":
-    case "-h":
-      extendUsage();
-      break;
-    default:
-      await extendDetails(subcommand);
-  }
-}
-
 async function board() {
   const goal = optionValue("--goal") || positional(1);
   if (!goal) {
@@ -1003,7 +913,7 @@ async function board() {
     process.exit(2);
   }
 
-  const script = await ensureLocalBoardExtension();
+  const script = ensureLocalBoardSurface();
   const scriptArgs = [script, "--goal", goal];
   for (const option of ["--host", "--port"]) {
     const value = optionValue(option);
@@ -1061,301 +971,16 @@ async function parallelPlan() {
   process.exit(result.status ?? 1);
 }
 
-async function ensureLocalBoardExtension() {
-  const id = "local-goal-board";
-  const script = join(extensionTarget(id), "scripts", "local-goal-board.mjs");
-  if (existsSync(script)) return script;
-
-  const catalog = await loadCatalog();
-  const extension = catalog.extensions.find((candidate) => candidate.id === id);
-  if (!extension) {
-    throw new Error(`Extension ${id} is not available in ${catalog.url}.`);
-  }
-
-  await installCatalogExtension(catalog, extension);
+function ensureLocalBoardSurface() {
+  const script = join(skillSource, "surfaces", "local-goal-board", "scripts", "local-goal-board.mjs");
   if (!existsSync(script)) {
-    throw new Error(`Extension ${id} installed, but script is missing: ${script}`);
+    throw new Error(`Bundled GoalBuddy board surface is missing: ${script}`);
   }
   return script;
 }
 
-function extendUsage() {
-  console.log(`${canonicalProductName} Extend
-
-Usage:
-  ${canonicalCliName} extend [--catalog-url <url-or-path>] [--kind <kind>] [--json]
-  ${canonicalCliName} extend <id> [--catalog-url <url-or-path>] [--json]
-  ${canonicalCliName} extend install <id> [--catalog-url <url-or-path>] [--dry-run] [--force] [--json]
-  ${canonicalCliName} extend install --all [--catalog-url <url-or-path>] [--dry-run] [--force] [--json]
-  ${canonicalCliName} extend doctor [<id>] [--codex-home <path>] [--json]
-
-States:
-  available   Listed in the catalog.
-  installed   Copied into the local ${canonicalProductName} skill install.
-  enabled     Allowed by a goal or task. Not implemented by this command yet.
-  configured  Required local env/provider settings are present.
-
-Catalog:
-  Defaults to ${defaultCatalogUrl}
-  Override with --catalog-url, GOALBUDDY_EXTEND_CATALOG_URL, or legacy GOAL_MAKER_EXTEND_CATALOG_URL.
-`);
-}
-
-async function extendCatalog() {
-  const catalog = await loadCatalog();
-  const kind = optionValue("--kind");
-  const extensions = catalog.extensions
-    .filter((extension) => !kind || extension.kind === kind)
-    .map(extensionWithLocalState);
-
-  if (hasFlag("--json")) {
-    printJson({ catalog_url: catalog.url, extensions });
-    return;
-  }
-
-  console.log("Available extensions");
-  if (extensions.length === 0) {
-    console.log("");
-    console.log(kind ? `No ${kind} extensions found.` : "No extensions found.");
-    return;
-  }
-  console.log("");
-  for (const extension of extensions) {
-    console.log(extension.name || extension.id);
-    if (extension.summary) console.log(`  ${extension.summary}`);
-    console.log(`  Details: npx ${canonicalCliName} extend ${extension.id}`);
-    console.log("");
-  }
-  console.log("Install all:");
-  console.log(`  npx ${canonicalCliName} extend install --all`);
-}
-
-async function extendDetails(id) {
-  const catalog = await loadCatalog();
-  const extension = catalog.extensions.find((candidate) => candidate.id === id);
-  if (!extension) {
-    printExtensionNotFound(id, catalog.extensions);
-    process.exit(1);
-  }
-  validateCatalogExtension(extension);
-  const detailed = extensionWithLocalState(extension);
-
-  if (hasFlag("--json")) {
-    printJson({ catalog_url: catalog.url, extension: detailed });
-    return;
-  }
-
-  console.log(extension.name || extension.summary || "");
-  console.log("");
-  if (extension.summary && extension.summary !== extension.name) {
-    console.log(extension.summary);
-    console.log("");
-  }
-  console.log(`Status: ${detailed.state.installed ? "installed" : "available"}`);
-  console.log(`Configured: ${detailed.state.configured ? "yes" : "no"}`);
-  console.log(`ID: ${extension.id}`);
-  console.log(`Kind: ${extension.kind}`);
-  if (extension.version) console.log(`Version: ${extension.version}`);
-  console.log(`Activation: ${extension.activation || "unspecified"}`);
-  console.log(`Safe by default: ${extension.safe_by_default ? "yes" : "no"}`);
-  console.log(`Requires approval: ${extension.requires_approval ? "yes" : "no"}`);
-  if (!detailed.state.configured && detailed.state.missing_env.length) {
-    console.log(`Missing env: ${detailed.state.missing_env.join(", ")}`);
-  }
-  printListSection("Use when", extension.use_when);
-  printListSection("Outputs", extension.outputs);
-  printListSection("Reads", extension.reads);
-  printListSection("Writes", extension.writes);
-  printListSection("Side effects", extension.side_effects);
-  printListSection("Agent instructions", extension.agent_instructions);
-  printListSection("Auth env", extension.auth?.env);
-  printSupports(extension.supports);
-  console.log("");
-  console.log("Local use prompt:");
-  console.log(`  ${extension.local_use_prompt || `Use the ${extension.name || extension.id} extension for docs/goals/<slug>/goal.md and write its ${firstValue(extension.outputs, "artifact")} as Markdown.`}`);
-  console.log("");
-  console.log("Install:");
-  console.log(`  npx ${canonicalCliName} extend install ${extension.id}`);
-  console.log("");
-  console.log("Preview install:");
-  console.log(`  npx ${canonicalCliName} extend install ${extension.id} --dry-run`);
-}
-
-function printListSection(title, values) {
-  if (!Array.isArray(values) || values.length === 0) return;
-  console.log("");
-  console.log(`${title}:`);
-  for (const value of values) console.log(`  - ${value}`);
-}
-
-function printSupports(supports) {
-  if (!supports || typeof supports !== "object") return;
-  const entries = Object.entries(supports);
-  if (entries.length === 0) return;
-  console.log("");
-  console.log("Supports:");
-  for (const [key, value] of entries) console.log(`  - ${key}: ${value}`);
-}
-
-function firstValue(values, fallback) {
-  return Array.isArray(values) && values.length ? values[0] : fallback;
-}
-
-async function extendInstall() {
-  const id = positional(2);
-  const catalog = await loadCatalog();
-  if (hasFlag("--all")) {
-    await extendInstallAll(catalog);
-    return;
-  }
-
-  if (!id) throw new Error(`Missing extension id. Usage: ${canonicalCliName} extend install <id>`);
-  const extension = catalog.extensions.find((candidate) => candidate.id === id);
-  if (!extension) {
-    printExtensionNotFound(id, catalog.extensions);
-    process.exit(1);
-  }
-  const result = await installCatalogExtension(catalog, extension);
-
-  if (hasFlag("--dry-run")) {
-    if (hasFlag("--json")) {
-      printJson({ dry_run: true, extension: extensionWithLocalState(extension), target: result.target, files: result.plan });
-    } else {
-      console.log(`Would install ${extension.id} to ${result.target}`);
-      for (const file of result.plan) console.log(`  ${file.path}`);
-    }
-    return;
-  }
-
-  if (hasFlag("--json")) {
-    printJson({ installed: true, extension: extension.id, target: result.target });
-  } else {
-    console.log(`Installed ${extension.id} to ${result.target}`);
-  }
-}
-
-async function extendInstallAll(catalog) {
-  const results = [];
-  for (const extension of catalog.extensions) {
-    if (existsSync(extensionTarget(extension.id)) && !hasFlag("--force")) {
-      validateCatalogExtension(extension);
-      results.push({ extension, target: extensionTarget(extension.id), plan: installPlan(catalog, extension, extensionTarget(extension.id)), skipped: true });
-      continue;
-    }
-    results.push(await installCatalogExtension(catalog, extension));
-  }
-
-  if (hasFlag("--dry-run")) {
-    if (hasFlag("--json")) {
-      printJson({
-        dry_run: true,
-        extensions: results.map(({ extension, target, plan }) => ({
-          extension: extensionWithLocalState(extension),
-          target,
-          files: plan,
-        })),
-      });
-    } else {
-      console.log(`Would install ${results.length} extensions`);
-      for (const { extension, target, plan } of results) {
-        console.log(`${extension.id} -> ${target}`);
-        for (const file of plan) console.log(`  ${file.path}`);
-      }
-    }
-    return;
-  }
-
-  if (hasFlag("--json")) {
-    printJson({
-      installed: true,
-      count: results.length,
-      extensions: results.map(({ extension, target, skipped }) => ({ id: extension.id, target, skipped: Boolean(skipped) })),
-    });
-  } else {
-    const installedCount = results.filter((result) => !result.skipped).length;
-    const skippedCount = results.length - installedCount;
-    console.log(`Installed ${installedCount} extensions${skippedCount ? `, skipped ${skippedCount} already installed` : ""}`);
-    for (const { extension, target, skipped } of results) console.log(`  ${extension.id} -> ${target}${skipped ? " (already installed)" : ""}`);
-  }
-}
-
-async function installCatalogExtension(catalog, extension) {
-  validateCatalogExtension(extension);
-  const target = extensionTarget(extension.id);
-  const plan = installPlan(catalog, extension, target);
-
-  if (hasFlag("--dry-run")) return { extension, target, plan };
-
-  assertSkillInstalledForExtensionInstall();
-  if (existsSync(target) && !hasFlag("--force")) {
-    throw new Error(`Extension already installed: ${target}. Use --force to overwrite.`);
-  }
-
-  const temp = `${target}.tmp-${process.pid}-${Date.now()}`;
-  rmSync(temp, { recursive: true, force: true });
-  mkdirSync(temp, { recursive: true });
-
-  try {
-    for (const file of plan) {
-      const content = await readResource(file.url);
-      const actualSha = sha256(content);
-      if (actualSha !== file.sha256) {
-        throw new Error(`Checksum mismatch for ${file.path}: expected ${file.sha256}, got ${actualSha}`);
-      }
-      const destination = join(temp, file.path);
-      mkdirSync(dirname(destination), { recursive: true });
-      writeFileSync(destination, content);
-    }
-
-    writeFileSync(join(temp, ".installed.json"), `${JSON.stringify({
-      id: extension.id,
-      version: extension.version || "",
-      kind: extension.kind,
-      catalog_url: catalog.url,
-      installed_at: new Date().toISOString(),
-      manifest: publicExtension(extension),
-      files: plan.map(({ path, sha256: digest }) => ({ path, sha256: digest })),
-    }, null, 2)}\n`);
-
-    rmSync(target, { recursive: true, force: true });
-    mkdirSync(dirname(target), { recursive: true });
-    renameSync(temp, target);
-  } catch (error) {
-    rmSync(temp, { recursive: true, force: true });
-    throw error;
-  }
-
-  return { extension, target, plan };
-}
-
-function extendDoctor() {
-  const id = positional(2);
-  const targets = installedExtensions().filter((extension) => !id || extension.id === id);
-  if (id && targets.length === 0) throw new Error(`Extension is not installed: ${id}`);
-
-  const reports = targets.map(doctorInstalledExtension);
-  const ok = reports.every((report) => report.ok);
-
-  if (hasFlag("--json")) {
-    printJson({ ok, extensions: reports });
-  } else if (reports.length === 0) {
-    console.log("No extensions installed.");
-  } else {
-    for (const report of reports) {
-      console.log(`${report.ok ? "ok" : "not ok"}\t${report.id}`);
-      for (const issue of report.issues) console.log(`  - ${issue}`);
-    }
-  }
-
-  process.exit(ok ? 0 : 1);
-}
-
 function installedSkillRoot() {
   return join(codexHome(), "skills", canonicalSkillDirectory);
-}
-
-function installedPluginSkillRoot() {
-  return installedCodexPlugin().skill_path;
 }
 
 function installedCodexPlugin() {
@@ -1413,117 +1038,8 @@ function pluginConfigEnabled(configPath) {
   return false;
 }
 
-function activeSkillRoot() {
-  if (existsSync(join(installedSkillRoot(), "SKILL.md"))) return installedSkillRoot();
-  const pluginSkillRoot = installedPluginSkillRoot();
-  if (pluginSkillRoot) return pluginSkillRoot;
-  return installedSkillRoot();
-}
-
 function legacyInstalledSkillRoot() {
   return join(codexHome(), "skills", legacySkillName);
-}
-
-function extendRoot() {
-  return join(activeSkillRoot(), "extend");
-}
-
-function extensionTarget(id) {
-  return join(extendRoot(), id);
-}
-
-function catalogUrl() {
-  return optionValue("--catalog-url")
-    || optionValue("--catalog")
-    || process.env.GOALBUDDY_EXTEND_CATALOG_URL
-    || process.env.GOAL_MAKER_EXTEND_CATALOG_URL
-    || defaultCatalogUrl;
-}
-
-async function loadCatalog() {
-  const url = catalogUrl();
-  const text = await readResource(url);
-  const catalog = JSON.parse(text);
-  if (!Array.isArray(catalog.extensions)) {
-    throw new Error("Extension catalog must contain an extensions array.");
-  }
-  return { ...catalog, url };
-}
-
-function printExtensionNotFound(id, extensions) {
-  console.error(`Extension not found: ${id}`);
-  if (extensions.length) {
-    console.error("");
-    console.error("Available extensions:");
-    for (const extension of extensions) {
-      console.error(`  ${extension.id}`);
-    }
-  }
-  console.error("");
-  console.error("Try:");
-  console.error(`  npx ${canonicalCliName} extend`);
-}
-
-function validateCatalogExtension(extension) {
-  if (!extension.id || !/^[a-z0-9][a-z0-9-]*$/.test(extension.id)) {
-    throw new Error(`Invalid extension id: ${extension.id || "<missing>"}`);
-  }
-  if (!extension.kind) throw new Error(`Extension ${extension.id} missing kind.`);
-  if (!Array.isArray(extension.files) || extension.files.length === 0) {
-    throw new Error(`Extension ${extension.id} must list files.`);
-  }
-  for (const file of extension.files) {
-    validateCatalogFile(extension, file);
-  }
-}
-
-function validateCatalogFile(extension, file) {
-  if (!file.path) throw new Error(`Extension ${extension.id} has a file without path.`);
-  if (!file.url) throw new Error(`Extension ${extension.id} file ${file.path} missing url.`);
-  if (!/^[a-f0-9]{64}$/i.test(file.sha256 || "")) {
-    throw new Error(`Extension ${extension.id} file ${file.path} must include sha256.`);
-  }
-  safeRelativePath(file.path);
-}
-
-function installPlan(catalog, extension, target) {
-  return extension.files.map((file) => ({
-    path: safeRelativePath(file.path),
-    url: resolveResourceUrl(catalog.url, file.url),
-    sha256: file.sha256.toLowerCase(),
-    target: join(target, safeRelativePath(file.path)),
-  }));
-}
-
-function safeRelativePath(path) {
-  const normalized = normalize(path).replaceAll("\\", "/");
-  if (!normalized || normalized.startsWith("../") || normalized === ".." || normalized.startsWith("/") || /^[A-Za-z]:/.test(normalized)) {
-    throw new Error(`Unsafe extension file path: ${path}`);
-  }
-  return normalized;
-}
-
-function resolveResourceUrl(base, value) {
-  if (/^https?:\/\//.test(value) || value.startsWith("file://") || value.startsWith("/")) return value;
-  if (/^https?:\/\//.test(base) || base.startsWith("file://")) {
-    return new URL(value, base).href;
-  }
-  return resolve(dirname(resolve(base)), value);
-}
-
-async function readResource(location) {
-  if (/^https?:\/\//.test(location)) {
-    if (!globalThis.fetch) throw new Error("This Node runtime does not provide fetch.");
-    const response = await globalThis.fetch(location, {
-      headers: {
-        "accept-encoding": "identity",
-      },
-    });
-    if (!response.ok) throw new Error(`Failed to fetch ${location}: HTTP ${response.status}`);
-    return Buffer.from(await response.arrayBuffer());
-  }
-  const path = location.startsWith("file://") ? fileURLToPath(location) : resolve(location);
-  return readFileSync(path);
 }
 
 function sha256(content) {
@@ -1558,50 +1074,8 @@ function listFiles(root, { exclude = new Set(), prefix = "" } = {}) {
   return files;
 }
 
-function preserveInstalledExtensions(targets, { tempRoot = "" } = {}) {
-  const ids = [];
-  const firstTarget = targets.find(Boolean) || codexHome();
-  const tempPath = join(tempRoot || dirname(dirname(firstTarget)), `.goalbuddy-preserved-extend-${process.pid}-${Date.now()}`);
-  let hasExtensions = false;
-  for (const target of targets) {
-    if (!target) continue;
-    const source = join(target, "extend");
-    if (!existsSync(source)) continue;
-    for (const entry of readdirSync(source, { withFileTypes: true })) {
-      if (bundledCoreExtensionIds.has(entry.name)) continue;
-      mkdirSync(tempPath, { recursive: true });
-      const from = join(source, entry.name);
-      const to = join(tempPath, entry.name);
-      cpSync(from, to, { recursive: true, force: true });
-      if (entry.isDirectory()) ids.push(entry.name);
-      hasExtensions = true;
-    }
-    rmSync(source, { recursive: true, force: true });
-  }
-  return { tempPath: hasExtensions ? tempPath : "", ids: uniqueSorted(ids) };
-}
-
-function restoreInstalledExtensions(target, tempPath) {
-  if (!tempPath) return;
-  const destinationRoot = join(target, "extend");
-  mkdirSync(destinationRoot, { recursive: true });
-  for (const entry of readdirSync(tempPath, { withFileTypes: true })) {
-    cpSync(join(tempPath, entry.name), join(destinationRoot, entry.name), { recursive: true, force: true });
-  }
-}
-
-function cleanupPreservedExtensions(paths) {
-  for (const path of uniqueSorted(paths.filter(Boolean))) {
-    rmSync(path, { recursive: true, force: true });
-  }
-}
-
-function uniqueSorted(values) {
-  return [...new Set(values)].sort();
-}
-
 function installFingerprintExcludes() {
-  return new Set(["extend", ".goalbuddy-install.json", ".goal-maker-install.json"]);
+  return new Set([".goalbuddy-install.json", ".goal-maker-install.json"]);
 }
 
 function installMetadataPath(target) {
@@ -1633,53 +1107,6 @@ function writeInstallMetadata(target, previousMetadata) {
   }, null, 2)}\n`);
 }
 
-async function extensionDiscoverySummary() {
-  try {
-    const catalog = await loadCatalog();
-    const extensions = catalog.extensions.map(extensionWithLocalState);
-    return {
-      catalog_url: catalog.url,
-      catalog_version: catalog.version || null,
-      available_count: extensions.length,
-      installed_count: extensions.filter((extension) => extension.state.installed).length,
-      available: extensions.map((extension) => ({
-        id: extension.id,
-        name: extension.name,
-        kind: extension.kind,
-        version: extension.version,
-        summary: extension.summary,
-        activation: extension.activation,
-        safe_by_default: extension.safe_by_default,
-        installed: extension.state.installed,
-        configured: extension.state.configured,
-        use_when: extension.use_when,
-        next_command: `${canonicalCliName} extend ${extension.id}`,
-      })),
-      recommended: extensions
-        .filter((extension) => extension.safe_by_default && !extension.state.installed)
-        .map((extension) => ({
-          id: extension.id,
-          name: extension.name,
-          kind: extension.kind,
-          activation: extension.activation,
-          summary: extension.summary,
-          use_when: extension.use_when.slice(0, 1),
-          next_command: `${canonicalCliName} extend ${extension.id}`,
-        })),
-    };
-  } catch (error) {
-    return {
-      catalog_url: catalogUrl(),
-      catalog_version: null,
-      available_count: 0,
-      installed_count: 0,
-      available: [],
-      recommended: [],
-      error: error.message,
-    };
-  }
-}
-
 function printInstallReport(report) {
   const verb = report.command === "update" ? "Updated" : "Installed";
   const previous = report.package.previous_version && report.package.previous_version !== report.package.current_version
@@ -1692,31 +1119,11 @@ function printInstallReport(report) {
   console.log(`Compatibility skill: ${report.skill.compatibility_path}`);
   const agentSummary = summarizeStatuses(report.agents);
   console.log(`Agents: ${agentSummary}`);
-  if (report.skill.preserved_extensions.length) {
-    console.log(`Preserved extensions: ${report.skill.preserved_extensions.join(", ")}`);
-  }
-
-  if (report.extensions.error) {
-    console.log("");
-    console.log(`Extensions: unavailable (${report.extensions.error})`);
-  } else {
-    console.log("");
-    console.log(`Extensions: ${report.extensions.available_count} available from ${report.extensions.catalog_url}`);
-    if (report.extensions.recommended.length) {
-      console.log("");
-      console.log("Recommended:");
-      for (const extension of report.extensions.recommended.slice(0, 3)) {
-        console.log(`  ${extension.name || extension.id}`);
-        if (extension.summary) console.log(`    ${extension.summary}`);
-        console.log(`    Details: npx ${extension.next_command}`);
-      }
-    }
-  }
 
   console.log("");
   console.log("Next:");
   console.log(`  $${canonicalSkillName}`);
-  console.log(`  ${canonicalCliName} extend`);
+  console.log(`  ${canonicalCliName} board docs/goals/<slug>`);
   console.log(`  ${legacyCliName} remains a temporary compatibility alias.`);
 }
 
@@ -1730,9 +1137,6 @@ function printEverywhereInstallReport(report) {
     console.log(`Codex: not completed (${report.codex.error})`);
   } else if (report.codex) {
     console.log(`Codex: plugin ${report.codex.version} enabled at ${report.codex.cache_path}`);
-    if (report.codex.preserved_extensions?.length) {
-      console.log(`Codex preserved extensions: ${report.codex.preserved_extensions.join(", ")}`);
-    }
   }
 
   if (report.claude?.ok === false) {
@@ -1765,12 +1169,6 @@ function summarizeStatuses(items) {
   return Object.entries(counts)
     .map(([status, count]) => `${count} ${status}`)
     .join(", ");
-}
-
-function assertSkillInstalledForExtensionInstall() {
-  if (!existsSync(join(activeSkillRoot(), "SKILL.md"))) {
-    throw new Error(`${canonicalProductName} skill is not installed. Run: npx ${canonicalCliName}`);
-  }
 }
 
 function latestPublishedVersion() {
@@ -1816,106 +1214,6 @@ function compareVersions(left, right) {
     if (diff !== 0) return diff;
   }
   return left.localeCompare(right);
-}
-
-function installedExtensions() {
-  const root = extendRoot();
-  if (!existsSync(root)) return [];
-  return readdirSync(root, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => readInstalledExtension(join(root, entry.name)))
-    .filter(Boolean);
-}
-
-function readInstalledExtension(path) {
-  const installedPath = join(path, ".installed.json");
-  if (!existsSync(installedPath)) {
-    return { id: basename(path), path, issues: ["missing .installed.json"] };
-  }
-  const data = JSON.parse(readFileSync(installedPath, "utf8"));
-  return {
-    ...data,
-    path,
-  };
-}
-
-function doctorInstalledExtension(extension) {
-  const issues = [];
-  for (const file of extension.files || []) {
-    const path = join(extension.path, safeRelativePath(file.path));
-    if (!existsSync(path)) {
-      issues.push(`missing file: ${file.path}`);
-      continue;
-    }
-    const actualSha = sha256(readFileSync(path));
-    if (actualSha !== file.sha256) {
-      issues.push(`checksum mismatch: ${file.path}`);
-    }
-  }
-  for (const envName of extension.manifest?.auth?.env || []) {
-    if (!process.env[envName]) issues.push(`missing env: ${envName}`);
-  }
-
-  return {
-    id: extension.id,
-    version: extension.version || "",
-    kind: extension.kind || "",
-    path: extension.path,
-    ok: issues.length === 0,
-    issues,
-  };
-}
-
-function publicExtension(extension) {
-  return {
-    id: extension.id,
-    name: extension.name || "",
-    kind: extension.kind || "",
-    version: extension.version || "",
-    summary: extension.summary || "",
-    description: extension.description || "",
-    local_use_prompt: extension.local_use_prompt || "",
-    source: extension.source || "",
-    docs: extension.docs || "",
-    use_when: extension.use_when || [],
-    activation: extension.activation || "",
-    outputs: extension.outputs || [],
-    requires_approval: extension.requires_approval || false,
-    safe_by_default: extension.safe_by_default || false,
-    applies_to: extension.applies_to || {},
-    reads: extension.reads || [],
-    writes: extension.writes || [],
-    side_effects: extension.side_effects || [],
-    agent_instructions: extension.agent_instructions || [],
-    auth: extension.auth || { env: [] },
-    supports: extension.supports || {},
-    source_of_truth: extension.source_of_truth || "local",
-    files: (extension.files || []).map((file) => ({
-      path: file.path,
-      sha256: file.sha256,
-    })),
-  };
-}
-
-function extensionWithLocalState(extension) {
-  return {
-    ...publicExtension(extension),
-    state: {
-      available: true,
-      installed: existsSync(extensionTarget(extension.id)),
-      enabled: false,
-      configured: configuredFor(extension),
-      missing_env: missingEnv(extension),
-    },
-  };
-}
-
-function configuredFor(extension) {
-  return missingEnv(extension).length === 0;
-}
-
-function missingEnv(extension) {
-  return (extension.auth?.env || []).filter((envName) => !process.env[envName]);
 }
 
 function printJson(value) {
