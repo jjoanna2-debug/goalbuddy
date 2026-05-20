@@ -60,7 +60,7 @@
             <span>a best friend.</span>
           </h1>
           <p class="hero-subcopy">
-            Goal Buddy prepares a goal.md for long /goal runs, keeps state.yaml as local truth, and pressures the work with an oracle, a local board, receipts, and final proof.
+            Goal Buddy prepares a goal.md for long /goal runs, keeps state.yaml as local truth, and pressures the work with a local board, receipts, and final proof.
           </p>
           <div class="hero-actions" aria-label="Goal Buddy actions">
             <a class="button button-primary" href="#install" data-copy="npx goalbuddy" data-copy-toast="Copied npx goalbuddy">
@@ -110,7 +110,7 @@
         <article>
           <i data-lucide="badge-check"></i>
           <h2>Finish with proof</h2>
-          <p>Receipts map back to the oracle before /goal can claim the outcome is complete.</p>
+          <p>Receipts map back to the original outcome before /goal can claim the work is complete.</p>
         </article>
       </section>
 
@@ -190,7 +190,7 @@
           <article class="file-card file-goal">
             <i data-lucide="file-text"></i>
           <h3>goal.md</h3>
-            <p>Human-readable charter for /goal: intent, scope, oracle, acceptance criteria, and run instructions.</p>
+            <p>Human-readable charter for /goal: intent, scope, acceptance criteria, and run instructions.</p>
             <code># Goal Charter<br>/goal Follow docs/goals/&lt;slug&gt;/goal.md</code>
           </article>
           <article class="file-card file-state">
@@ -229,7 +229,7 @@
           </li>
           <li>
             <i data-lucide="crosshair"></i>
-            <span>Set oracle</span>
+            <span>Set proof</span>
           </li>
           <li>
             <i data-lucide="gavel"></i>
@@ -282,6 +282,11 @@
             <h3>Continuation</h3>
             <p>If safe local work remains, /goal advances instead of stopping after the first passing slice.</p>
           </article>
+          <article>
+            <i data-lucide="list-checks"></i>
+            <h3>Whole slices</h3>
+            <p>Judge chooses the largest safe useful slice, and Worker completes it before returning a receipt.</p>
+          </article>
         </div>
       </section>
 
@@ -289,7 +294,7 @@
 
       <section class="final-cta" aria-labelledby="cta-title">
         <div>
-          <h2 id="cta-title">Give /goal an oracle, a board, and a proof loop.</h2>
+          <h2 id="cta-title">Give /goal a board, receipts, and a proof loop.</h2>
           <p>MIT licensed. Dependency-free runtime. Built around local goal.md and state.yaml files.</p>
         </div>
         <a class="button button-primary" href="#install" data-copy="npx goalbuddy" data-copy-toast="Copied npx goalbuddy">
