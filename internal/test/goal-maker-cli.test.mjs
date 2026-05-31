@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -10,6 +10,7 @@ const packageVersion = JSON.parse(readFileSync("package.json", "utf8")).version;
 
 function runGoalMaker(args, options = {}) {
   const result = spawnSync(process.execPath, [cli, ...args], {
+    cwd: options.cwd || process.cwd(),
     encoding: "utf8",
     env: testEnv(options.env || process.env),
   });
@@ -304,6 +305,69 @@ checks:
   }
 });
 
+test("prompt resolves relative goal paths without rewriting task ids", () => {
+  const root = mkdtempSync(join(tmpdir(), "goal-maker-cli-test-"));
+  try {
+    const goal = join(root, "docs", "goals", "demo");
+    mkdirSync(goal, { recursive: true });
+    writeFileSync(join(goal, "state.yaml"), `version: 2
+goal:
+  title: "Relative prompt test"
+  slug: "relative-prompt-test"
+  kind: specific
+  tranche: "Render a relative prompt."
+  status: active
+agents:
+  scout: installed
+  worker: installed
+  judge: installed
+active_task: T002
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    objective: "Inspect the relative board."
+    receipt:
+      result: done
+      summary: "Mapped the board."
+  - id: T002
+    type: worker
+    assignee: Worker
+    status: active
+    objective: "Patch the relative board."
+    allowed_files:
+      - internal/cli/**
+    verify:
+      - npm test
+    stop_if:
+      - "Need files outside allowed_files."
+    receipt: null
+checks:
+  dirty_fingerprint: unknown
+  last_verification:
+    result: unknown
+    task: null
+    commands: []
+`);
+
+    const cases = [
+      ["prompt", "docs/goals/demo", "--task", "T001", "--json"],
+      ["prompt", "docs/goals/demo", "--task=T001", "--json"],
+      ["prompt", "--board", "docs/goals/demo/state.yaml", "--task", "T001", "--json"],
+    ];
+    for (const args of cases) {
+      const result = runGoalMaker(args, { cwd: root });
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+      const report = JSON.parse(result.stdout);
+      assert.equal(report.task.id, "T001", args.join(" "));
+      assert.equal(report.metadata.board_path, join(realpathSync(goal), "state.yaml"));
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("prompt warns when the board may be micro-slicing", () => {
   const root = mkdtempSync(join(tmpdir(), "goal-maker-cli-test-"));
   try {
@@ -441,7 +505,7 @@ checks:
 `;
     writeFileSync(join(goal, "state.yaml"), parentState);
 
-    const result = runGoalMaker(["parallel-plan", goal, "--json"]);
+    const result = runGoalMaker(["parallel-plan", "goal", "--json"], { cwd: root });
     assert.equal(result.status, 0, result.stderr || result.stdout);
     const report = JSON.parse(result.stdout);
     assert.equal(report.mutated, false);
@@ -987,18 +1051,18 @@ checks:
 
     const board = runGoalMaker([
       "board",
-      goalDir,
+      join("docs", "goals", "demo"),
       "--codex-home",
       codexHome,
       "--once",
       "--json",
       "--port",
       "0",
-    ]);
+    ], { cwd: root });
     assert.equal(board.status, 0, board.stderr || board.stdout);
 
     const report = JSON.parse(board.stdout);
-    assert.equal(report.goalDir, goalDir);
+    assert.equal(report.goalDir, realpathSync(goalDir));
     assert.equal(existsSync(join(goalDir, ".goalbuddy-board", "index.html")), true);
     assert.equal(report.board.goal.slug, "demo");
   } finally {

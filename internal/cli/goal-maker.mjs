@@ -201,19 +201,19 @@ function positionalArgs() {
  */
 function resolveChildGoalArgs(rawArgs) {
   const out = [];
-  let resolveNext = false;
-  for (const arg of rawArgs) {
-    if (resolveNext) {
-      out.push(resolve(arg));
-      resolveNext = false;
-      continue;
-    }
+  for (let index = 0; index < rawArgs.length; index += 1) {
+    const arg = rawArgs[index];
     const joinedMatch = [...pathOptions].find((opt) => arg.startsWith(opt + "="));
     if (joinedMatch) {
-      out.push(joinedMatch + "=" + resolve(arg.slice(joinedMatch.length + 1)));
+      const value = arg.slice(joinedMatch.length + 1);
+      out.push(`${joinedMatch}=${value ? resolve(value) : value}`);
     } else if (pathOptions.has(arg)) {
       out.push(arg);
-      resolveNext = true;
+      const value = rawArgs[++index] || "";
+      out.push(value ? resolve(value) : value);
+    } else if (optionsWithValues.has(arg)) {
+      out.push(arg);
+      out.push(rawArgs[++index] || "");
     } else if (!arg.startsWith("-")) {
       out.push(resolve(arg));
     } else {
