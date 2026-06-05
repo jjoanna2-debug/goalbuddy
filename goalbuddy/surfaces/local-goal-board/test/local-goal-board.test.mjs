@@ -472,6 +472,50 @@ test("serves board JSON and streams live state changes over SSE", async () => {
   }
 });
 
+test("coalesces transient active-task violations during multi-write transitions", async () => {
+  const root = mkdtempSync(join(tmpdir(), "goalbuddy-local-board-transition-"));
+  const goalDir = join(root, "transition-goal");
+  try {
+    mkdirSync(join(goalDir, "notes"), { recursive: true });
+    writeFileSync(join(goalDir, "state.yaml"), transitionStateYaml({
+      activeTask: "T001",
+      firstStatus: "active",
+      secondStatus: "queued",
+    }));
+
+    const server = await startBoardServer({ goalDir, host: "127.0.0.1", port: 0 });
+    try {
+      const controller = new AbortController();
+      const events = await fetch(`${server.url}events`, { signal: controller.signal });
+      assert.equal(events.status, 200);
+      const reader = events.body.getReader();
+
+      await readUntil(reader, /"activeTask":"T001"/);
+      writeFileSync(join(goalDir, "state.yaml"), transitionStateYaml({
+        activeTask: "T002",
+        firstStatus: "active",
+        secondStatus: "active",
+      }));
+      await delay(120);
+      writeFileSync(join(goalDir, "state.yaml"), transitionStateYaml({
+        activeTask: "T002",
+        firstStatus: "done",
+        secondStatus: "active",
+      }));
+
+      const update = await readUntil(reader, /"activeTask":"T002"/);
+      assert.doesNotMatch(update, /more than one active task/i);
+
+      controller.abort();
+      await reader.cancel().catch(() => {});
+    } finally {
+      await server.close();
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("streams parent board updates when linked child subgoal state changes", async () => {
   const root = mkdtempSync(join(tmpdir(), "goalbuddy-local-board-subgoal-live-"));
   const goalDir = join(root, "parent-goal");
@@ -624,6 +668,10 @@ async function readUntil(reader, pattern) {
   assert.fail(`Timed out waiting for ${pattern}. Received:\n${text}`);
 }
 
+function delay(ms) {
+  return new Promise((resolveDelay) => setTimeout(resolveDelay, ms));
+}
+
 function parentWithSubgoalYaml() {
   return `version: 2
 goal:
@@ -644,6 +692,39 @@ tasks:
       path: subgoals/T001-child/state.yaml
       owner: Worker
       depth: 1
+    receipt: null
+`;
+}
+
+function transitionStateYaml({ activeTask, firstStatus, secondStatus }) {
+  return `version: 2
+goal:
+  title: "Transition Goal"
+  slug: "transition-goal"
+  kind: specific
+  tranche: "Verify multi-write task transition."
+  status: active
+active_task: ${activeTask}
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: ${firstStatus}
+    objective: "Map transition."
+    receipt:
+      result: done
+      summary: "Mapped transition."
+  - id: T002
+    type: worker
+    assignee: Worker
+    status: ${secondStatus}
+    objective: "Implement transition."
+    allowed_files:
+      - goalbuddy/surfaces/local-goal-board/**
+    verify:
+      - npm run check
+    stop_if:
+      - "Need files outside allowed_files."
     receipt: null
 `;
 }

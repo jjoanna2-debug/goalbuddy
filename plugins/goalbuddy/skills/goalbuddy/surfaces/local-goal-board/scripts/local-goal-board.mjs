@@ -33,6 +33,7 @@ const SETTINGS_OPTIONS = {
 const DEFAULT_BIND_HOST = "127.0.0.1";
 const DEFAULT_PUBLIC_HOST = "goalbuddy.localhost";
 const DEFAULT_PORT = 41737;
+const STATE_CHANGE_SETTLE_MS = 300;
 
 if (isDirectRun()) {
   main().catch((error) => {
@@ -441,7 +442,7 @@ async function readJsonRequest(request) {
 
 function watchGoal(goalDir, onChange) {
   const watchers = [];
-  const schedule = debounce(onChange, 80);
+  const schedule = debounce(onChange, STATE_CHANGE_SETTLE_MS);
   let watchedDirs = new Set();
 
   const rebuild = () => {
